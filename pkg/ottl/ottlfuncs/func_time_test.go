@@ -243,6 +243,27 @@ func Test_Time(t *testing.T) {
 	}
 }
 
+func Test_TimeTrailingTimezoneDirectiveUsesLocalTimezone(t *testing.T) {
+	originalLocal := time.Local
+	time.Local = time.FixedZone("KST", 9*60*60)
+	t.Cleanup(func() {
+		time.Local = originalLocal
+	})
+
+	input := &ottl.StandardStringGetter[any]{
+		Getter: func(context.Context, any) (any, error) {
+			return "2026-09-08 19:02:42 KST", nil
+		},
+	}
+
+	exprFunc, err := parseTime(input, "%Y-%m-%d %H:%M:%S %Z", ottl.Optional[string]{}, ottl.Optional[string]{})
+	require.NoError(t, err)
+
+	result, err := exprFunc(t.Context(), nil)
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2026, 9, 8, 10, 2, 42, 0, time.UTC).UnixNano(), result.(time.Time).UnixNano())
+}
+
 func Test_TimeError(t *testing.T) {
 	tests := []struct {
 		name          string

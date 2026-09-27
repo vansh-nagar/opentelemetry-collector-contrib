@@ -16,6 +16,47 @@ func TestParseGoTimeBadLocation(t *testing.T) {
 	require.ErrorContains(t, err, "failed to load location BST")
 }
 
+func TestGetLocation(t *testing.T) {
+	newYork, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		location *string
+		layout   *string
+		expected *time.Location
+	}{
+		{
+			name:     "explicit location takes precedence",
+			location: new("America/New_York"),
+			layout:   new("%Y-%m-%d %H:%M:%S %Z"),
+			expected: newYork,
+		},
+		{
+			name:     "strptime timezone directive uses local timezone",
+			layout:   new("%Y-%m-%d %H:%M:%S %Z"),
+			expected: time.Local,
+		},
+		{
+			name:     "literal Z suffix uses UTC",
+			layout:   new("%Y-%m-%dT%H:%M:%SZ"),
+			expected: time.UTC,
+		},
+		{
+			name:     "no layout uses local timezone",
+			expected: time.Local,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual, err := GetLocation(tt.location, tt.layout)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+
 // TestParseGotimeLocalPreserved verifies that when no timezone abbreviation is
 // present in the layout, the returned time.Time keeps time.Local as its location
 // regardless of what the system timezone name happens to be (e.g. "WET", "CET").
